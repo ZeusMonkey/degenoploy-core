@@ -106,6 +106,7 @@ contract Degenopoly is ERC20PresetMinterPauserUpgradeable {
 
         // set address provider
         addressProvider = IAddressProvider(_addressProvider);
+        _setupRole(MINTER_ROLE, addressProvider.getDegenopolyNodeManager());
 
         // mint initial supply
         _mint(addressProvider.getTreasury(), INITIAL_SUPPLY);
