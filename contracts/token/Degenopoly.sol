@@ -80,6 +80,8 @@ contract Degenopoly is ERC20PresetMinterPauserUpgradeable {
     event UniswapFee(uint256 uniswapFee);
     event ExcludeFromFee(address account);
     event IncludeFromFee(address account);
+    event MaximumWallet(uint256 maximumWallet);
+    event MaximumBuy(uint256 maximumBuy);
 
     /* ======== INITIALIZATION ======== */
 
@@ -98,7 +100,7 @@ contract Degenopoly is ERC20PresetMinterPauserUpgradeable {
         // set address provider
         addressProvider = IAddressProvider(_addressProvider);
         _setupRole(MINTER_ROLE, addressProvider.getDegenopolyNodeManager());
-        _setupRole(MINTER_ROLE, addressProvider.getArbipolyPlayBoard());
+        _setupRole(MINTER_ROLE, addressProvider.getDegenopolyPlayBoard());
 
         // mint initial supply
         _mint(addressProvider.getTreasury(), INITIAL_SUPPLY);
@@ -124,7 +126,7 @@ contract Degenopoly is ERC20PresetMinterPauserUpgradeable {
         isExcludedFromFee[msg.sender] = true;
         isExcludedFromFee[address(this)] = true;
         isExcludedFromFee[addressProvider.getTreasury()] = true;
-        isExcludedFromFee[addressProvider.getArbipolyPlayBoard()] = true;
+        isExcludedFromFee[addressProvider.getDegenopolyPlayBoard()] = true;
 
         // init
         __ERC20PresetMinterPauser_init(NAME, SYMBOL);
@@ -182,6 +184,18 @@ contract Degenopoly is ERC20PresetMinterPauserUpgradeable {
         isExcludedFromFee[_account] = false;
 
         emit IncludeFromFee(_account);
+    }
+
+    function setMaximumWallet(uint256 _maximumWallet) external onlyOwner {
+        maximumWallet = _maximumWallet;
+
+        emit MaximumWallet(_maximumWallet);
+    }
+
+    function setMaximumBuy(uint256 _maximumBuy) external onlyOwner {
+        maximumBuy = _maximumBuy;
+
+        emit MaximumBuy(_maximumBuy);
     }
 
     function setSwapTaxSettings(

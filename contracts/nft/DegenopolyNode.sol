@@ -75,7 +75,7 @@ contract DegenopolyNode is ERC721PresetMinterPauserAutoIdUpgradeable {
         // set address provider
         addressProvider = IAddressProvider(_addressProvider);
         _setupRole(MINTER_ROLE, addressProvider.getDegenopolyNodeManager());
-        _setupRole(MINTER_ROLE, addressProvider.getArbipolyPlayBoard());
+        _setupRole(MINTER_ROLE, addressProvider.getDegenopolyPlayBoard());
 
         // reward per second
         rewardPerSec = _rewardPerSec;

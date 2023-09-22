@@ -11,7 +11,7 @@ import {IDegenopoly} from '../interfaces/IDegenopoly.sol';
 import {IDegenopolyNode} from '../interfaces/IDegenopolyNode.sol';
 import {IDegenopolyNodeManager} from '../interfaces/IDegenopolyNodeManager.sol';
 
-contract ArbipolyPlayBoard is OwnableUpgradeable {
+contract DegenopolyPlayBoard is OwnableUpgradeable {
     using SafeERC20 for IERC20;
 
     /* ======== STORAGE ======== */
@@ -58,6 +58,9 @@ contract ArbipolyPlayBoard is OwnableUpgradeable {
     /// @notice mapping account => position at play board
     mapping(address => uint256) public positionOf;
 
+    /// @notice mapping account => last dice
+    mapping(address => uint256) public diceOf;
+
     /// @dev mapping account => last roll block number
     mapping(address => uint256) private lastRollBlockOf;
 
@@ -97,19 +100,10 @@ contract ArbipolyPlayBoard is OwnableUpgradeable {
         _disableInitializers();
     }
 
-    function initialize(
-        address _addressProvider,
-        Case[] calldata _cases
-    ) external initializer {
+    function initialize(address _addressProvider) external initializer {
         // address provider
         if (_addressProvider == address(0)) revert ZERO_ADDRESS();
         addressProvider = IAddressProvider(_addressProvider);
-
-        // cases
-        numberOfCases = _cases.length;
-        for (uint256 i = 0; i < numberOfCases; i++) {
-            cases.push(_cases[i]);
-        }
 
         // fee 50 DPLOY
         fee = 50 ether;
@@ -129,6 +123,16 @@ contract ArbipolyPlayBoard is OwnableUpgradeable {
         addressProvider = IAddressProvider(_addressProvider);
 
         emit AddressProvider(_addressProvider);
+    }
+
+    function setCases(Case[] calldata _cases) external onlyOwner {
+        delete cases;
+
+        numberOfCases = _cases.length;
+
+        for (uint256 i = 0; i < numberOfCases; i++) {
+            cases.push(_cases[i]);
+        }
     }
 
     function setFee(uint256 _fee) external onlyOwner {
@@ -169,6 +173,9 @@ contract ArbipolyPlayBoard is OwnableUpgradeable {
 
         // roll dice
         uint256 dice = (block.prevrandao % 6) + 1;
+        diceOf[msg.sender] = dice;
+
+        // position
         uint256 position = (positionOf[msg.sender] + dice) % numberOfCases;
         positionOf[msg.sender] = position;
 

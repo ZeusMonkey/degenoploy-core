@@ -63,38 +63,10 @@ contract DegenopolyNodeManager is OwnableUpgradeable, IDegenopolyNodeManager {
         _disableInitializers();
     }
 
-    function initialize(
-        address _addressProvider,
-        address[] calldata _nodes,
-        address[] calldata _families
-    ) external initializer {
+    function initialize(address _addressProvider) external initializer {
         // address provider
         if (_addressProvider == address(0)) revert ZERO_ADDRESS();
         addressProvider = IAddressProvider(_addressProvider);
-
-        // degenopoly nodes
-        uint256 length = _nodes.length;
-        for (uint256 i = 0; i < length; i++) {
-            address node = _nodes[i];
-            if (node == address(0)) revert ZERO_ADDRESS();
-
-            nodes.add(node);
-            nodesOfColor[getColorBytes32(IDegenopolyNode(node).color())].add(
-                node
-            );
-        }
-
-        // degenopoly node families
-        length = _families.length;
-        for (uint256 i = 0; i < length; i++) {
-            address family = _families[i];
-            if (family == address(0)) revert ZERO_ADDRESS();
-
-            families.add(family);
-            familyOfColor[
-                getColorBytes32(IDegenopolyNodeFamily(family).color())
-            ] = family;
-        }
 
         // init
         __Ownable_init();
@@ -108,7 +80,7 @@ contract DegenopolyNodeManager is OwnableUpgradeable, IDegenopolyNodeManager {
     }
 
     modifier onlyPlayBoard() {
-        if (msg.sender != addressProvider.getArbipolyPlayBoard())
+        if (msg.sender != addressProvider.getDegenopolyPlayBoard())
             revert NOT_PLAY_BOARD();
         _;
     }
@@ -339,6 +311,29 @@ contract DegenopolyNodeManager is OwnableUpgradeable, IDegenopolyNodeManager {
         }
 
         return pending;
+    }
+
+    function dailyRewardOf(
+        address _account
+    ) external view returns (uint256 dailyReward) {
+        uint256 length = nodes.length();
+
+        for (uint256 i = 0; i < length; i++) {
+            IDegenopolyNode node = IDegenopolyNode(nodes.at(i));
+
+            dailyReward +=
+                (node.rewardPerSec() * node.balanceOf(_account)) /
+                node.totalSupply();
+        }
+
+        dailyReward =
+            (dailyReward *
+                (
+                    multiplierOf[_account] == 0
+                        ? MULTIPLIER
+                        : multiplierOf[_account]
+                )) /
+            MULTIPLIER;
     }
 
     /* ======== INTERNAL FUNCTIONS ======== */

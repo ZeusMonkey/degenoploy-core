@@ -54,12 +54,12 @@ contract AddressProvider is OwnableUpgradeable, IAddressProvider {
         _addresses[DEGENOPOLY_NODE_MANAGER] = _degenopolyNodeManager;
     }
 
-    function setArbipolyPlayBoard(
-        address _arbipolyPlayBoard
+    function setDegenopolyPlayBoard(
+        address _degenopolyPlayBoard
     ) external onlyOwner {
-        if (_arbipolyPlayBoard == address(0)) revert ZERO_ADDRESS();
+        if (_degenopolyPlayBoard == address(0)) revert ZERO_ADDRESS();
 
-        _addresses[ARBIPOLY_PLAY_BOARD] = _arbipolyPlayBoard;
+        _addresses[ARBIPOLY_PLAY_BOARD] = _degenopolyPlayBoard;
     }
 
     /* ======== VIEW FUNCTIONS ======== */
@@ -76,7 +76,7 @@ contract AddressProvider is OwnableUpgradeable, IAddressProvider {
         return _addresses[DEGENOPOLY_NODE_MANAGER];
     }
 
-    function getArbipolyPlayBoard() external view returns (address) {
+    function getDegenopolyPlayBoard() external view returns (address) {
         return _addresses[ARBIPOLY_PLAY_BOARD];
     }
 }

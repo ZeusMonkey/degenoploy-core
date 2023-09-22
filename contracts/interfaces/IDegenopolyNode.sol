@@ -7,7 +7,11 @@ import {IERC721Upgradeable} from '@openzeppelin/contracts-upgradeable/token/ERC7
 interface IDegenopolyNode is IERC721Upgradeable {
     function color() external view returns (string memory);
 
+    function rewardPerSec() external view returns (uint256);
+
     function purchasePrice() external view returns (uint256);
+
+    function totalSupply() external view returns (uint256);
 
     function mint(address to) external;
 
