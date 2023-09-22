@@ -8,10 +8,15 @@ import {IAddressProvider} from '../interfaces/IAddressProvider.sol';
 import {IDegenopolyNodeManager} from '../interfaces/IDegenopolyNodeManager.sol';
 
 contract DegenopolyNode is ERC721PresetMinterPauserAutoIdUpgradeable {
+    /* ======== STORAGE ======== */
+
     struct RewardInfo {
         uint256 pending;
         uint256 debt;
     }
+
+    /// @notice percent multiplier (100%)
+    uint256 public constant MULTIPLIER = 10000;
 
     /// @notice color family
     string public color;
@@ -19,14 +24,11 @@ contract DegenopolyNode is ERC721PresetMinterPauserAutoIdUpgradeable {
     /// @notice address provider
     IAddressProvider public addressProvider;
 
-    /// @notice cap
-    uint256 public cap;
-
     /// @notice degenopoly reward per second
     uint256 public rewardPerSec;
 
     /// @notice purchase price in degenopoly
-    uint256 public purhcasePrice;
+    uint256 public purchasePrice;
 
     /// @dev reward accTokenPerShare
     uint256 private accTokenPerShare;
@@ -40,12 +42,13 @@ contract DegenopolyNode is ERC721PresetMinterPauserAutoIdUpgradeable {
     /* ======== ERRORS ======== */
 
     error ZERO_ADDRESS();
+    error ZERO_AMOUNT();
     error NOT_MANAGER();
-    error CAP_EXCEED();
 
     /* ======== EVENTS ======== */
 
     event AddressProvider(address addressProvider);
+    event PurchasePrice(uint256 purchasePrice);
 
     /* ======== INITIALIZATION ======== */
 
@@ -61,9 +64,10 @@ contract DegenopolyNode is ERC721PresetMinterPauserAutoIdUpgradeable {
         string memory _color,
         address _addressProvider,
         uint256 _rewardPerSec,
-        uint256 _purhcasePrice
+        uint256 _purchasePrice
     ) external initializer {
         if (_addressProvider == address(0)) revert ZERO_ADDRESS();
+        if (_rewardPerSec == 0 || _purchasePrice == 0) revert ZERO_AMOUNT();
 
         // color family
         color = _color;
@@ -71,15 +75,13 @@ contract DegenopolyNode is ERC721PresetMinterPauserAutoIdUpgradeable {
         // set address provider
         addressProvider = IAddressProvider(_addressProvider);
         _setupRole(MINTER_ROLE, addressProvider.getDegenopolyNodeManager());
+        _setupRole(MINTER_ROLE, addressProvider.getArbipolyPlayBoard());
 
         // reward per second
         rewardPerSec = _rewardPerSec;
 
-        // purhcase price
-        purhcasePrice = _purhcasePrice;
-
-        // cap on the token's total supply
-        cap = 1000;
+        // purchase price
+        purchasePrice = _purchasePrice;
 
         // init
         __ERC721PresetMinterPauserAutoId_init(_name, _symbol, _baseTokenURI);
@@ -119,6 +121,14 @@ contract DegenopolyNode is ERC721PresetMinterPauserAutoIdUpgradeable {
         emit AddressProvider(_addressProvider);
     }
 
+    function setPurchasePrice(uint256 _purchasePrice) external onlyOwner {
+        if (_purchasePrice == 0) revert ZERO_AMOUNT();
+
+        purchasePrice = _purchasePrice;
+
+        emit PurchasePrice(_purchasePrice);
+    }
+
     /* ======== MANAGER FUNCTIONS ======== */
 
     function syncReward(address _account) external onlyManager update {
@@ -129,9 +139,11 @@ contract DegenopolyNode is ERC721PresetMinterPauserAutoIdUpgradeable {
     function claimReward(
         address _account
     ) external onlyManager update returns (uint256 pending) {
+        // update reward
         RewardInfo storage rewardInfo = _updateReward(_account);
         rewardInfo.debt = accTokenPerShare * balanceOf(_account);
 
+        // claim
         pending = rewardInfo.pending;
         rewardInfo.pending = 0;
     }
@@ -141,30 +153,29 @@ contract DegenopolyNode is ERC721PresetMinterPauserAutoIdUpgradeable {
     function claimableReward(
         address _account
     ) external view returns (uint256 pending) {
-        uint256 balance = balanceOf(_account);
-        if (balance == 0) return 0;
-
-        uint256 accTokenPerShare_ = accTokenPerShare +
-            (rewardPerSec * (block.timestamp - lastUpdate)) /
-            totalSupply();
-        (uint256 rewardBoost, uint256 multiplier) = IDegenopolyNodeManager(
+        // reward multiplier
+        uint256 multiplier = IDegenopolyNodeManager(
             addressProvider.getDegenopolyNodeManager()
-        ).getRewardBoostFor(_account, color);
+        ).getMultiplierFor(_account);
+
+        // update reward
+        uint256 accTokenPerShare_ = accTokenPerShare;
+        if (totalSupply() > 0) {
+            accTokenPerShare_ +=
+                (rewardPerSec * (block.timestamp - lastUpdate)) /
+                totalSupply();
+        }
         RewardInfo storage rewardInfo = rewardInfoOf[_account];
 
+        // pending
         pending =
             rewardInfo.pending +
-            ((accTokenPerShare_ * balance - rewardInfo.debt) * rewardBoost) /
-            multiplier;
+            ((accTokenPerShare_ * balanceOf(_account) - rewardInfo.debt) *
+                multiplier) /
+            MULTIPLIER;
     }
 
     /* ======== INTERNAL FUNCTIONS ======== */
-
-    function _mint(address to, uint256 tokenId) internal virtual override {
-        if (totalSupply() >= cap) revert CAP_EXCEED();
-
-        super._mint(to, tokenId);
-    }
 
     function _beforeTokenTransfer(
         address _from,
@@ -177,17 +188,11 @@ contract DegenopolyNode is ERC721PresetMinterPauserAutoIdUpgradeable {
         if (_from != address(0)) {
             RewardInfo storage rewardInfo = _updateReward(_from);
             rewardInfo.debt = accTokenPerShare * (balanceOf(_from) - 1);
-
-            IDegenopolyNodeManager(addressProvider.getDegenopolyNodeManager())
-                .syncNodeReward(_from);
         }
 
         if (_to != address(0)) {
             RewardInfo storage rewardInfo = _updateReward(_to);
             rewardInfo.debt = accTokenPerShare * (balanceOf(_to) + 1);
-
-            IDegenopolyNodeManager(addressProvider.getDegenopolyNodeManager())
-                .syncNodeReward(_to);
         }
     }
 
@@ -196,14 +201,14 @@ contract DegenopolyNode is ERC721PresetMinterPauserAutoIdUpgradeable {
     ) internal returns (RewardInfo storage rewardInfo) {
         if (_account == address(0)) revert ZERO_ADDRESS();
 
-        uint256 balance = balanceOf(_account);
-        (uint256 rewardBoost, uint256 multiplier) = IDegenopolyNodeManager(
+        uint256 multiplier = IDegenopolyNodeManager(
             addressProvider.getDegenopolyNodeManager()
-        ).getRewardBoostFor(_account, color);
+        ).getMultiplierFor(_account);
 
         rewardInfo = rewardInfoOf[_account];
-        rewardInfo.pending =
-            ((accTokenPerShare * balance - rewardInfo.debt) * rewardBoost) /
-            multiplier;
+        rewardInfo.pending +=
+            ((accTokenPerShare * balanceOf(_account) - rewardInfo.debt) *
+                multiplier) /
+            MULTIPLIER;
     }
 }

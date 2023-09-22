@@ -8,4 +8,6 @@ interface IAddressProvider {
     function getDegenopoly() external view returns (address);
 
     function getDegenopolyNodeManager() external view returns (address);
+
+    function getArbipolyPlayBoard() external view returns (address);
 }

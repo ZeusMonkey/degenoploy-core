@@ -47,9 +47,6 @@ contract Degenopoly is ERC20PresetMinterPauserUpgradeable {
     /// @notice Uniswap Router
     IUniswapV2Router02 public router;
 
-    /// @notice liquidity pool
-    address public liquidityPool;
-
     /// @notice swap fee for zap
     uint256 public uniswapFee;
 
@@ -72,7 +69,6 @@ contract Degenopoly is ERC20PresetMinterPauserUpgradeable {
 
     error ZERO_ADDRESS();
     error INVALID_FEE();
-    error INVALID_LP();
     error PAUSED();
     error EXCEED_MAX_WALLET();
     error EXCEED_MAX_BUY();
@@ -82,7 +78,6 @@ contract Degenopoly is ERC20PresetMinterPauserUpgradeable {
     event AddressProvider(address addressProvider);
     event Tax(uint256 sellTax, uint256 buyTax);
     event UniswapFee(uint256 uniswapFee);
-    event LiquidityPool(address liquidityPool);
     event ExcludeFromFee(address account);
     event IncludeFromFee(address account);
 
@@ -95,18 +90,15 @@ contract Degenopoly is ERC20PresetMinterPauserUpgradeable {
 
     function initialize(
         address _addressProvider,
-        address _router,
-        address _liquidityPool
+        address _router
     ) external initializer {
-        if (
-            _addressProvider == address(0) ||
-            _router == address(0) ||
-            _liquidityPool == address(0)
-        ) revert ZERO_ADDRESS();
+        if (_addressProvider == address(0) || _router == address(0))
+            revert ZERO_ADDRESS();
 
         // set address provider
         addressProvider = IAddressProvider(_addressProvider);
         _setupRole(MINTER_ROLE, addressProvider.getDegenopolyNodeManager());
+        _setupRole(MINTER_ROLE, addressProvider.getArbipolyPlayBoard());
 
         // mint initial supply
         _mint(addressProvider.getTreasury(), INITIAL_SUPPLY);
@@ -121,7 +113,6 @@ contract Degenopoly is ERC20PresetMinterPauserUpgradeable {
 
         // dex config
         router = IUniswapV2Router02(_router);
-        liquidityPool = _liquidityPool;
         _approve(address(this), address(router), type(uint256).max);
 
         // swap config
@@ -132,6 +123,8 @@ contract Degenopoly is ERC20PresetMinterPauserUpgradeable {
         // exclude from fee
         isExcludedFromFee[msg.sender] = true;
         isExcludedFromFee[address(this)] = true;
+        isExcludedFromFee[addressProvider.getTreasury()] = true;
+        isExcludedFromFee[addressProvider.getArbipolyPlayBoard()] = true;
 
         // init
         __ERC20PresetMinterPauser_init(NAME, SYMBOL);
@@ -177,14 +170,6 @@ contract Degenopoly is ERC20PresetMinterPauserUpgradeable {
         uniswapFee = _uniswapFee;
 
         emit UniswapFee(_uniswapFee);
-    }
-
-    function setLiquidityPool(address _liquidityPool) external onlyOwner {
-        if (!_isLP(_liquidityPool)) revert INVALID_LP();
-
-        liquidityPool = _liquidityPool;
-
-        emit LiquidityPool(_liquidityPool);
     }
 
     function excludeFromFee(address _account) external onlyOwner {
@@ -320,7 +305,7 @@ contract Degenopoly is ERC20PresetMinterPauserUpgradeable {
             uint256 nodeBalance = IDegenopolyNodeManager(
                 addressProvider.getDegenopolyNodeManager()
             ).balanceOf(_from);
-            uint256 discountTax = 10 * nodeBalance; // 1% for each NFT
+            uint256 discountTax = 100 * nodeBalance; // 1% for each NFT
 
             if (sellTax > discountTax)
                 return ((sellTax - discountTax) * _amount) / MULTIPLIER;
@@ -355,6 +340,10 @@ contract Degenopoly is ERC20PresetMinterPauserUpgradeable {
     }
 
     function _swapTax() internal swapping {
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = router.WETH();
+
         uint256 balance = pendingTax;
         delete pendingTax;
 
@@ -364,37 +353,44 @@ contract Degenopoly is ERC20PresetMinterPauserUpgradeable {
             _burn(address(this), burnAmount);
         }
 
-        // treasury (2x)
-        uint256 treasuryAmount = burnAmount * 2;
+        // treasury (3x)
+        uint256 treasuryAmount = burnAmount * 3;
         if (treasuryAmount > 0) {
-            _transfer(
+            uint256 balanceBefore = address(this).balance;
+
+            // swap
+            router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+                treasuryAmount,
+                0,
+                path,
                 address(this),
-                addressProvider.getTreasury(),
-                treasuryAmount
+                block.timestamp
             );
+
+            // eth to treasury
+            uint256 amountETH = address(this).balance - balanceBefore;
+            payable(addressProvider.getTreasury()).call{value: amountETH}('');
         }
 
-        // liquidity (2x)
+        // liquidity (1x)
         uint256 liquidityAmount = balance - burnAmount - treasuryAmount;
         if (liquidityAmount > 0) {
-            IUniswapV2Pair pair = IUniswapV2Pair(liquidityPool);
-            address token = pair.token0() == address(this)
-                ? pair.token1()
-                : pair.token0();
+            IUniswapV2Pair pair = IUniswapV2Pair(
+                IUniswapV2Factory(router.factory()).getPair(
+                    address(this),
+                    router.WETH()
+                )
+            );
 
             // zap amount
             (uint256 rsv0, uint256 rsv1, ) = pair.getReserves();
             uint256 sellAmount = _calculateSwapInAmount(
-                token == address(this) ? rsv1 : rsv0,
+                pair.token0() == address(this) ? rsv0 : rsv1,
                 liquidityAmount
             );
 
             // swap
-            address[] memory path = new address[](2);
-            path[0] = address(this);
-            path[1] = token;
-
-            router.swapExactTokensForTokensSupportingFeeOnTransferTokens(
+            router.swapExactTokensForETHSupportingFeeOnTransferTokens(
                 sellAmount,
                 0,
                 path,
@@ -403,15 +399,9 @@ contract Degenopoly is ERC20PresetMinterPauserUpgradeable {
             );
 
             // add liquidity
-            uint256 amount = IERC20(token).balanceOf(address(this));
-
-            IERC20(token).safeIncreaseAllowance(address(router), amount);
-
-            router.addLiquidity(
+            router.addLiquidityETH{value: address(this).balance}(
                 address(this),
-                token,
                 liquidityAmount - sellAmount,
-                amount,
                 0,
                 0,
                 addressProvider.getTreasury(),

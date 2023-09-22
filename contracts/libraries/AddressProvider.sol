@@ -11,6 +11,7 @@ contract AddressProvider is OwnableUpgradeable, IAddressProvider {
     bytes32 private constant DEGENOPOLY = 'DEGENOPOLY';
     bytes32 private constant DEGENOPOLY_NODE_MANAGER =
         'DEGENOPOLY_NODE_MANAGER';
+    bytes32 private constant ARBIPOLY_PLAY_BOARD = 'ARBIPOLY_PLAY_BOARD';
 
     /// @notice address storage
     mapping(bytes32 => address) private _addresses;
@@ -53,6 +54,14 @@ contract AddressProvider is OwnableUpgradeable, IAddressProvider {
         _addresses[DEGENOPOLY_NODE_MANAGER] = _degenopolyNodeManager;
     }
 
+    function setArbipolyPlayBoard(
+        address _arbipolyPlayBoard
+    ) external onlyOwner {
+        if (_arbipolyPlayBoard == address(0)) revert ZERO_ADDRESS();
+
+        _addresses[ARBIPOLY_PLAY_BOARD] = _arbipolyPlayBoard;
+    }
+
     /* ======== VIEW FUNCTIONS ======== */
 
     function getTreasury() external view returns (address) {
@@ -65,5 +74,9 @@ contract AddressProvider is OwnableUpgradeable, IAddressProvider {
 
     function getDegenopolyNodeManager() external view returns (address) {
         return _addresses[DEGENOPOLY_NODE_MANAGER];
+    }
+
+    function getArbipolyPlayBoard() external view returns (address) {
+        return _addresses[ARBIPOLY_PLAY_BOARD];
     }
 }

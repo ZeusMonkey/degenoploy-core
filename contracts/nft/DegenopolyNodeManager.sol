@@ -10,6 +10,7 @@ import {EnumerableSet} from '@openzeppelin/contracts/utils/structs/EnumerableSet
 import {IAddressProvider} from '../interfaces/IAddressProvider.sol';
 import {IDegenopoly} from '../interfaces/IDegenopoly.sol';
 import {IDegenopolyNode} from '../interfaces/IDegenopolyNode.sol';
+import {IDegenopolyNodeFamily} from '../interfaces/IDegenopolyNodeFamily.sol';
 import {IDegenopolyNodeManager} from '../interfaces/IDegenopolyNodeManager.sol';
 
 contract DegenopolyNodeManager is OwnableUpgradeable, IDegenopolyNodeManager {
@@ -22,26 +23,37 @@ contract DegenopolyNodeManager is OwnableUpgradeable, IDegenopolyNodeManager {
     /// @notice address provider
     IAddressProvider public addressProvider;
 
-    /// @dev mapping color => reward boost
-    mapping(bytes32 => uint256) private rewardBoostOf;
-
-    /// @notice degenopoly nodes
+    /// @dev degenopoly nodes
     EnumerableSet.AddressSet private nodes;
 
-    /// @notice mapping color => degenopoly nodes
+    /// @dev mapping color => degenopoly nodes
     mapping(bytes32 => EnumerableSet.AddressSet) private nodesOfColor;
+
+    /// @dev degenopoly node families
+    EnumerableSet.AddressSet private families;
+
+    /// @dev mapping color => degenopoly node family
+    mapping(bytes32 => address) private familyOfColor;
+
+    /// @dev mapping account => reward multiplier
+    mapping(address => uint256) private multiplierOf;
 
     /* ======== ERRORS ======== */
 
     error ZERO_ADDRESS();
     error ZERO_AMOUNT();
     error INAVLID_NODE();
+    error INVALID_FAMILY();
     error INVALID_LENGTH();
+    error NOT_NODE_FAMILY();
+    error NOT_PLAY_BOARD();
+    error NOT_NODE_OWNER();
 
     /* ======== EVENTS ======== */
 
     event AddressProvider(address addressProvider);
-    event Purchase(address account, address node);
+    event PurchaseNode(address account, address node);
+    event PurchaseNodeFamily(address account, address family);
     event ClaimReward(address account, uint256 reward);
 
     /* ======== INITIALIZATION ======== */
@@ -53,7 +65,8 @@ contract DegenopolyNodeManager is OwnableUpgradeable, IDegenopolyNodeManager {
 
     function initialize(
         address _addressProvider,
-        address[] calldata _nodes
+        address[] calldata _nodes,
+        address[] calldata _families
     ) external initializer {
         // address provider
         if (_addressProvider == address(0)) revert ZERO_ADDRESS();
@@ -71,8 +84,33 @@ contract DegenopolyNodeManager is OwnableUpgradeable, IDegenopolyNodeManager {
             );
         }
 
+        // degenopoly node families
+        length = _families.length;
+        for (uint256 i = 0; i < length; i++) {
+            address family = _families[i];
+            if (family == address(0)) revert ZERO_ADDRESS();
+
+            families.add(family);
+            familyOfColor[
+                getColorBytes32(IDegenopolyNodeFamily(family).color())
+            ] = family;
+        }
+
         // init
         __Ownable_init();
+    }
+
+    /* ======== MODIFIERS ======== */
+
+    modifier onlyNodeFamily() {
+        if (!families.contains(msg.sender)) revert NOT_NODE_FAMILY();
+        _;
+    }
+
+    modifier onlyPlayBoard() {
+        if (msg.sender != addressProvider.getArbipolyPlayBoard())
+            revert NOT_PLAY_BOARD();
+        _;
     }
 
     /* ======== POLICY FUNCTIONS ======== */
@@ -113,45 +151,83 @@ contract DegenopolyNodeManager is OwnableUpgradeable, IDegenopolyNodeManager {
         }
     }
 
-    function setRewardBoost(
-        string[] calldata _colors,
-        uint256[] calldata _rewardBoosts
-    ) external onlyOwner {
-        uint256 length = _colors.length;
-        if (length != _rewardBoosts.length) revert INVALID_LENGTH();
+    function addNodeFamilies(address[] calldata _families) external onlyOwner {
+        uint256 length = _families.length;
 
         for (uint256 i = 0; i < length; i++) {
-            uint256 rewardBoost = _rewardBoosts[i];
-            if (rewardBoost == 0) revert ZERO_AMOUNT();
+            address family = _families[i];
+            if (family == address(0)) revert ZERO_ADDRESS();
 
-            rewardBoostOf[getColorBytes32(_colors[i])] = rewardBoost;
+            families.add(family);
+            familyOfColor[
+                getColorBytes32(IDegenopolyNodeFamily(family).color())
+            ] = family;
         }
     }
 
-    /* ======== NODE FUNCTIONS ======== */
-
-    function syncNodeReward(address _account) external {
-        if (!nodes.contains(msg.sender)) return;
-
-        bytes32 color = getColorBytes32(IDegenopolyNode(msg.sender).color());
-        uint256 length = nodesOfColor[color].length();
+    function removeNodeFamilies(
+        address[] calldata _families
+    ) external onlyOwner {
+        uint256 length = _families.length;
 
         for (uint256 i = 0; i < length; i++) {
-            address node = nodesOfColor[color].at(i);
+            address family = _families[i];
+            if (family == address(0)) revert ZERO_ADDRESS();
 
-            if (node != msg.sender) {
-                IDegenopolyNode(node).syncReward(_account);
-            }
+            families.remove(family);
+            familyOfColor[
+                getColorBytes32(IDegenopolyNodeFamily(family).color())
+            ] = address(0);
         }
+    }
+
+    /* ======== NODE FAMILY FUNCTIONS ======== */
+
+    function mintNodeFamily(address _account) external onlyNodeFamily {
+        _syncNodeReward(_account);
+
+        // bonus
+        uint256 multiplier = multiplierOf[_account] == 0
+            ? MULTIPLIER
+            : multiplierOf[_account];
+        multiplierOf[_account] =
+            (multiplier * IDegenopolyNodeFamily(msg.sender).rewardBoost()) /
+            MULTIPLIER;
+    }
+
+    function burnNodeFamily(address _account) external onlyNodeFamily {
+        _syncNodeReward(_account);
+
+        // malus
+        uint256 multiplier = multiplierOf[_account] == 0
+            ? MULTIPLIER
+            : multiplierOf[_account];
+        multiplierOf[_account] =
+            (multiplier * MULTIPLIER) /
+            IDegenopolyNodeFamily(msg.sender).rewardBoost();
+    }
+
+    /* ======== PLAY BOARD FUNCTIONS ======== */
+
+    function addMultiplier(
+        address _account,
+        uint256 _multiplier
+    ) external onlyPlayBoard {
+        _syncNodeReward(_account);
+
+        uint256 multiplier = multiplierOf[_account] == 0
+            ? MULTIPLIER
+            : multiplierOf[_account];
+        multiplierOf[_account] = (multiplier * _multiplier) / MULTIPLIER;
     }
 
     /* ======== PUBLIC FUNCTIONS ======== */
 
-    function purchase(address _node) external {
+    function purchaseNode(address _node) external {
         if (!nodes.contains(_node)) revert INAVLID_NODE();
 
         // pay
-        uint256 price = IDegenopolyNode(_node).purhcasePrice();
+        uint256 price = IDegenopolyNode(_node).purchasePrice();
         IERC20(addressProvider.getDegenopoly()).safeTransferFrom(
             msg.sender,
             addressProvider.getTreasury(),
@@ -162,7 +238,38 @@ contract DegenopolyNodeManager is OwnableUpgradeable, IDegenopolyNodeManager {
         IDegenopolyNode(_node).mint(msg.sender);
 
         // event
-        emit Purchase(msg.sender, _node);
+        emit PurchaseNode(msg.sender, _node);
+    }
+
+    function purchaseNodeFamily(
+        address _family,
+        uint256[] calldata _nodeTokenIds
+    ) external {
+        if (!families.contains(_family)) revert INVALID_FAMILY();
+
+        // nodes for family
+        address[] memory nodesForFamily = nodesOfColor[
+            getColorBytes32(IDegenopolyNodeFamily(_family).color())
+        ].values();
+        uint256 length = nodesForFamily.length;
+        if (length != _nodeTokenIds.length) revert INVALID_LENGTH();
+
+        // burn nodes
+        for (uint256 i = 0; i < length; i++) {
+            address node = nodesForFamily[i];
+            uint256 tokenId = _nodeTokenIds[i];
+
+            if (IDegenopolyNode(node).ownerOf(tokenId) != msg.sender)
+                revert NOT_NODE_OWNER();
+
+            IDegenopolyNode(node).burn(tokenId);
+        }
+
+        // mint
+        IDegenopolyNodeFamily(_family).mint(msg.sender);
+
+        // event
+        emit PurchaseNodeFamily(msg.sender, _family);
     }
 
     function claimReward() external {
@@ -193,31 +300,21 @@ contract DegenopolyNodeManager is OwnableUpgradeable, IDegenopolyNodeManager {
         return nodesOfColor[getColorBytes32(_color)].values();
     }
 
-    function getRewardBoostOf(
-        string memory _color
-    ) public view returns (uint256) {
-        return rewardBoostOf[getColorBytes32(_color)];
+    function getAllNodeFamilies() external view returns (address[] memory) {
+        return families.values();
     }
 
-    function getRewardBoostFor(
-        address _account,
+    function getNodeFamilyOfColor(
         string memory _color
-    ) external view returns (uint256 rewardBoost, uint256 multiplier) {
-        multiplier = MULTIPLIER;
+    ) external view returns (address) {
+        return familyOfColor[getColorBytes32(_color)];
+    }
 
-        bytes32 color = getColorBytes32(_color);
-        uint256 length = nodesOfColor[color].length();
-
-        for (uint256 i = 0; i < length; i++) {
-            address node = nodesOfColor[color].at(i);
-
-            if (IDegenopolyNode(node).balanceOf(_account) == 0) {
-                rewardBoost = MULTIPLIER;
-                break;
-            }
-        }
-
-        rewardBoost = getRewardBoostOf(_color);
+    function getMultiplierFor(
+        address _account
+    ) external view returns (uint256) {
+        return
+            multiplierOf[_account] == 0 ? MULTIPLIER : multiplierOf[_account];
     }
 
     function balanceOf(
@@ -250,5 +347,13 @@ contract DegenopolyNodeManager is OwnableUpgradeable, IDegenopolyNodeManager {
         string memory _color
     ) internal pure returns (bytes32) {
         return keccak256(bytes(_color));
+    }
+
+    function _syncNodeReward(address _account) internal {
+        uint256 length = nodes.length();
+
+        for (uint256 i = 0; i < length; i++) {
+            IDegenopolyNode(nodes.at(i)).syncReward(_account);
+        }
     }
 }
