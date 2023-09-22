@@ -321,9 +321,11 @@ contract DegenopolyNodeManager is OwnableUpgradeable, IDegenopolyNodeManager {
         for (uint256 i = 0; i < length; i++) {
             IDegenopolyNode node = IDegenopolyNode(nodes.at(i));
 
-            dailyReward +=
-                (node.rewardPerSec() * node.balanceOf(_account)) /
-                node.totalSupply();
+            if (node.totalSupply() > 0) {
+                dailyReward +=
+                    (node.rewardPerSec() * node.balanceOf(_account) * 86400) /
+                    node.totalSupply();
+            }
         }
 
         dailyReward =
