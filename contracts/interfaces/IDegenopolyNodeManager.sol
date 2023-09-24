@@ -18,4 +18,6 @@ interface IDegenopolyNodeManager {
     function burnNodeFamily(address _account) external;
 
     function addMultiplier(address _account, uint256 _multiplier) external;
+
+    function setMinted(address _account, bool _minted) external;
 }
