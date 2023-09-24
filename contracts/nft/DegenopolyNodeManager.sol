@@ -12,6 +12,7 @@ import {IDegenopoly} from '../interfaces/IDegenopoly.sol';
 import {IDegenopolyNode} from '../interfaces/IDegenopolyNode.sol';
 import {IDegenopolyNodeFamily} from '../interfaces/IDegenopolyNodeFamily.sol';
 import {IDegenopolyNodeManager} from '../interfaces/IDegenopolyNodeManager.sol';
+import {IDegenopolyPlayBoard} from '../interfaces/IDegenopolyPlayBoard.sol';
 
 contract DegenopolyNodeManager is OwnableUpgradeable, IDegenopolyNodeManager {
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -42,6 +43,7 @@ contract DegenopolyNodeManager is OwnableUpgradeable, IDegenopolyNodeManager {
 
     error ZERO_ADDRESS();
     error ZERO_AMOUNT();
+    error NOT_MINTABLE_NODE();
     error INAVLID_NODE();
     error INVALID_FAMILY();
     error INVALID_LENGTH();
@@ -197,6 +199,15 @@ contract DegenopolyNodeManager is OwnableUpgradeable, IDegenopolyNodeManager {
 
     function purchaseNode(address _node) external {
         if (!nodes.contains(_node)) revert INAVLID_NODE();
+
+        // mintable
+        IDegenopolyPlayBoard degenopolyPlayBoard = IDegenopolyPlayBoard(
+            addressProvider.getDegenopolyPlayBoard()
+        );
+        if (degenopolyPlayBoard.mintableNode(msg.sender) != _node) {
+            revert NOT_MINTABLE_NODE();
+        }
+        degenopolyPlayBoard.setNodeMinted(msg.sender);
 
         // pay
         uint256 price = IDegenopolyNode(_node).purchasePrice();

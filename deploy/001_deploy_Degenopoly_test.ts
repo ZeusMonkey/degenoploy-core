@@ -30,6 +30,82 @@ const deployDegenopoly: DeployFunction = async (
   const { deploy } = deployments;
   const [deployer] = await ethers.getSigners();
 
+  // {
+  //   const degenopolyNodeManager = (await ethers.getContract(
+  //     'DegenopolyNodeManager',
+  //     deployer
+  //   )) as DegenopolyNodeManager;
+  //   const degenopolyPlayBoard = (await ethers.getContract(
+  //     'DegenopolyPlayBoard',
+  //     deployer
+  //   )) as DegenopolyPlayBoard;
+
+  //   const nodes = await degenopolyNodeManager.getAllNodes();
+  //   for (let node of nodes) {
+  //     console.log('---->', node);
+  //     const degenopolyNode = (await ethers.getContractAt(
+  //       'DegenopolyNode',
+  //       node,
+  //       deployer
+  //     )) as DegenopolyNode;
+  //     console.log('1---->', node);
+  //     const mintRole = await degenopolyNode.MINTER_ROLE();
+  //     console.log('2---->', node, mintRole);
+
+  //     if (
+  //       !(await degenopolyNode.hasRole(mintRole, degenopolyNodeManager.address))
+  //     ) {
+  //       console.log('3manager');
+  //       await (
+  //         await degenopolyNode.grantRole(
+  //           mintRole,
+  //           degenopolyNodeManager.address
+  //         )
+  //       ).wait();
+  //       console.log('manager');
+  //       await waitSeconds(5);
+  //     }
+  //     if (
+  //       !(await degenopolyNode.hasRole(mintRole, degenopolyPlayBoard.address))
+  //     ) {
+  //       await (
+  //         await degenopolyNode.grantRole(mintRole, degenopolyPlayBoard.address)
+  //       ).wait();
+  //       console.log('board');
+  //       await waitSeconds(5);
+  //     }
+  //   }
+
+  //   const families = await degenopolyNodeManager.getAllNodeFamilies();
+  //   for (let family of families) {
+  //     console.log('---->', family);
+  //     const degenopolyNodeFamily = (await ethers.getContractAt(
+  //       'DegenopolyNodeFamily',
+  //       family,
+  //       deployer
+  //     )) as DegenopolyNodeFamily;
+  //     const mintRole = await degenopolyNodeFamily.MINTER_ROLE();
+
+  //     if (
+  //       !(await degenopolyNodeFamily.hasRole(
+  //         mintRole,
+  //         degenopolyNodeManager.address
+  //       ))
+  //     ) {
+  //       console.log('------222');
+  //       await (
+  //         await degenopolyNodeFamily.grantRole(
+  //           mintRole,
+  //           degenopolyNodeManager.address
+  //         )
+  //       ).wait();
+  //       await waitSeconds(5);
+  //     }
+  //   }
+
+  //   return;
+  // }
+
   /// UniswapV2Router
   const uniswapV2RouterAddress = '0x073aD32c56fB57038DAd0b9148d34a09a539e18F';
   const uniswapV2Router = await ethers.getContractAt(
@@ -231,7 +307,7 @@ const deployDegenopoly: DeployFunction = async (
       name: 'Liquidation Park',
       symbol: 'Liquidation Park',
       baseTokenURI: '',
-      color: 'Yello',
+      color: 'Yellow',
       rewardPerSec: ether(42).div(86400),
       purchasePrice: ether(1200),
     },
@@ -239,7 +315,7 @@ const deployDegenopoly: DeployFunction = async (
       name: 'Gems Kingdom',
       symbol: 'Gems Kingdom',
       baseTokenURI: '',
-      color: 'Yello',
+      color: 'Yellow',
       rewardPerSec: ether(43.75).div(86400),
       purchasePrice: ether(1250),
     },
@@ -292,6 +368,27 @@ const deployDegenopoly: DeployFunction = async (
     await waitSeconds(1);
 
     degenopolyNodes.push(degenopolyNode.address);
+
+    continue;
+
+    const mintRole = await degenopolyNode.MINTER_ROLE();
+    if (
+      !(await degenopolyNode.hasRole(mintRole, degenopolyNodeManager.address))
+    ) {
+      console.log('reseting for ', degenopolyNode.address);
+      await (
+        await degenopolyNode.grantRole(mintRole, degenopolyNodeManager.address)
+      ).wait();
+      await waitSeconds(5);
+    }
+    if (
+      !(await degenopolyNode.hasRole(mintRole, degenopolyPlayBoard.address))
+    ) {
+      await (
+        await degenopolyNode.grantRole(mintRole, degenopolyPlayBoard.address)
+      ).wait();
+      await waitSeconds(5);
+    }
   }
 
   /// DegenopolyNodeFamily
@@ -305,10 +402,10 @@ const deployDegenopoly: DeployFunction = async (
       rewardBoost: 1.25 * multiplier,
     },
     {
-      name: 'Grey Family',
-      symbol: 'Grey Family',
+      name: 'Gray Family',
+      symbol: 'Gray Family',
       baseTokenURI: '',
-      color: 'Grey',
+      color: 'Gray',
       rewardBoost: 1.5 * multiplier,
     },
     {
@@ -378,6 +475,25 @@ const deployDegenopoly: DeployFunction = async (
     await waitSeconds(1);
 
     degenpolyNodeFamilies.push(degenopolyNodeFamily.address);
+
+    continue;
+
+    const mintRole = await degenopolyNodeFamily.MINTER_ROLE();
+    if (
+      !(await degenopolyNodeFamily.hasRole(
+        mintRole,
+        degenopolyNodeManager.address
+      ))
+    ) {
+      console.log('reseting for ', degenopolyNodeFamily.address);
+      await (
+        await degenopolyNodeFamily.grantRole(
+          mintRole,
+          degenopolyNodeManager.address
+        )
+      ).wait();
+      await waitSeconds(5);
+    }
   }
 
   /// Degenopoly
@@ -402,6 +518,22 @@ const deployDegenopoly: DeployFunction = async (
   if ((await addressProvider.getDegenopoly()) != degenopoly.address) {
     (await addressProvider.setDegenopoly(degenopoly.address)).wait();
     await waitSeconds(5);
+  }
+  {
+    const mintRole = await degenopoly.MINTER_ROLE();
+    if (!(await degenopoly.hasRole(mintRole, degenopolyNodeManager.address))) {
+      console.log('reseting for ', degenopoly.address);
+      await (
+        await degenopoly.grantRole(mintRole, degenopolyNodeManager.address)
+      ).wait();
+      await waitSeconds(5);
+    }
+    if (!(await degenopoly.hasRole(mintRole, degenopolyPlayBoard.address))) {
+      await (
+        await degenopoly.grantRole(mintRole, degenopolyPlayBoard.address)
+      ).wait();
+      await waitSeconds(5);
+    }
   }
 
   /// Configuration of DegenopolyPlayBoard

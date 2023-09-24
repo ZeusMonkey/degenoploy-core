@@ -65,6 +65,9 @@ contract Degenopoly is ERC20PresetMinterPauserUpgradeable {
     /// @dev in swap
     bool private inSwap;
 
+    /// @dev only ower trading
+    bool private onlyOwnerTrading;
+
     /* ======== ERRORS ======== */
 
     error ZERO_ADDRESS();
@@ -206,6 +209,10 @@ contract Degenopoly is ERC20PresetMinterPauserUpgradeable {
         swapThreshold = _swapThreshold;
     }
 
+    function setOnlyOwnerTrading(bool _onlyOwnerTrading) external onlyOwner {
+        onlyOwnerTrading = _onlyOwnerTrading;
+    }
+
     function recoverERC20(IERC20 token) external onlyOwner {
         if (address(token) == address(this)) {
             token.safeTransfer(
@@ -232,6 +239,10 @@ contract Degenopoly is ERC20PresetMinterPauserUpgradeable {
         address _to,
         uint256 _amount
     ) public override returns (bool) {
+        if (onlyOwnerTrading) {
+            _checkRole(DEFAULT_ADMIN_ROLE);
+        }
+
         address owner = msg.sender;
 
         _transferWithTax(owner, _to, _amount);
@@ -244,6 +255,10 @@ contract Degenopoly is ERC20PresetMinterPauserUpgradeable {
         address _to,
         uint256 _amount
     ) public override returns (bool) {
+        if (onlyOwnerTrading) {
+            _checkRole(DEFAULT_ADMIN_ROLE);
+        }
+
         address spender = msg.sender;
 
         _spendAllowance(_from, spender, _amount);

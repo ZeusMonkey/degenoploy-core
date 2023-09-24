@@ -15,6 +15,10 @@ import {IDegenopolyNodeManager} from '../interfaces/IDegenopolyNodeManager.sol';
 contract MockDegenopolyPlayBoard is DegenopolyPlayBoard {
     using SafeERC20 for IERC20;
 
+    function setMintableNode(address _node) external {
+        mintableNode[msg.sender] = _node;
+    }
+
     function rollDiceManually(uint256 _dice) external {
         // fee to move forward
         IERC20 degenopoly = IERC20(addressProvider.getDegenopoly());

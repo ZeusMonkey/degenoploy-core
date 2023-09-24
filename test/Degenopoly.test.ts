@@ -226,7 +226,7 @@ describe('Degenopoly', function () {
         name: 'Liquidation Park',
         symbol: 'Liquidation Park',
         baseTokenURI: '',
-        color: 'Yello',
+        color: 'Yellow',
         rewardPerSec: ether(42).div(86400),
         purchasePrice: ether(1200),
       },
@@ -234,7 +234,7 @@ describe('Degenopoly', function () {
         name: 'Gems Kingdom',
         symbol: 'Gems Kingdom',
         baseTokenURI: '',
-        color: 'Yello',
+        color: 'Yellow',
         rewardPerSec: ether(43.75).div(86400),
         purchasePrice: ether(1250),
       },
@@ -290,10 +290,10 @@ describe('Degenopoly', function () {
         rewardBoost: 1.25 * multiplier,
       },
       {
-        name: 'Grey Family',
-        symbol: 'Grey Family',
+        name: 'Gray Family',
+        symbol: 'Gray Family',
         baseTokenURI: '',
-        color: 'Grey',
+        color: 'Gray',
         rewardBoost: 1.5 * multiplier,
       },
       {
@@ -745,7 +745,15 @@ describe('Degenopoly', function () {
       rewardBoost = await family.rewardBoost();
     });
 
+    it('purchase node without mintable', async function () {
+      await expect(
+        degenopolyNodeManager.connect(trader).purchaseNode(node.address)
+      ).to.be.revertedWith('NOT_MINTABLE_NODE()');
+    });
+
     it('purchase node', async function () {
+      await degenopolyPlayBoard.connect(trader).setMintableNode(node.address);
+
       const tx = await degenopolyNodeManager
         .connect(trader)
         .purchaseNode(node.address);
@@ -763,6 +771,7 @@ describe('Degenopoly', function () {
     });
 
     it('claimable rewards', async function () {
+      await degenopolyPlayBoard.connect(trader).setMintableNode(node.address);
       await degenopolyNodeManager.connect(trader).purchaseNode(node.address);
       await increaseTime(86400); // 1 day
 
@@ -772,6 +781,7 @@ describe('Degenopoly', function () {
     });
 
     it('claim rewards', async function () {
+      await degenopolyPlayBoard.connect(trader).setMintableNode(node.address);
       await degenopolyNodeManager.connect(trader).purchaseNode(node.address);
       const startBlock = await getLatestBlock();
 
@@ -796,7 +806,11 @@ describe('Degenopoly', function () {
     });
 
     it('purchase family', async function () {
+      await degenopolyPlayBoard.connect(trader).setMintableNode(node.address);
       await degenopolyNodeManager.connect(trader).purchaseNode(node.address);
+      await degenopolyPlayBoard
+        .connect(trader)
+        .setMintableNode(degenopolyNodes[1].address);
       await degenopolyNodeManager
         .connect(trader)
         .purchaseNode(degenopolyNodes[1].address);
@@ -815,6 +829,7 @@ describe('Degenopoly', function () {
         ethers.constants.Zero
       );
 
+      await degenopolyPlayBoard.connect(trader).setMintableNode(node.address);
       await degenopolyNodeManager.connect(trader).purchaseNode(node.address);
       expect(await degenopolyNodeManager.dailyRewardOf(trader.address)).equal(
         rewardPerSec.mul(86400).mul(rewardBoost).div(multiplier)

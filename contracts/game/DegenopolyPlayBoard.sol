@@ -65,10 +65,14 @@ contract DegenopolyPlayBoard is OwnableUpgradeable {
     mapping(address => uint256) private lastRollBlockOf;
 
     /// @dev mapping account => last event type from roll dice
-    mapping(address => EventType) private lastEventTypeOf;
+    mapping(address => EventType) public lastEventTypeOf;
+
+    /// @dev mapping account => mintable node
+    mapping(address => address) public mintableNode;
 
     /* ======== ERRORS ======== */
 
+    error NOT_MANAGER();
     error ZERO_ADDRESS();
     error ZERO_AMOUNT();
     error INVALID_FEE_RATIO();
@@ -92,6 +96,7 @@ contract DegenopolyPlayBoard is OwnableUpgradeable {
     );
     event CEXChoice(address account, Case nowCase, EventType eventType);
     event AirdropChoice(address account, address node);
+    event RejectMintableNode(address account, address node);
 
     /* ======== INITIALIZATION ======== */
 
@@ -113,6 +118,14 @@ contract DegenopolyPlayBoard is OwnableUpgradeable {
 
         // init
         __Ownable_init();
+    }
+
+    /* ======== MODIFIERS ======== */
+
+    modifier onlyManager() {
+        if (msg.sender != addressProvider.getDegenopolyNodeManager())
+            revert NOT_MANAGER();
+        _;
     }
 
     /* ======== POLICY FUNCTIONS ======== */
@@ -151,6 +164,12 @@ contract DegenopolyPlayBoard is OwnableUpgradeable {
         emit DevFeeRatio(_devFeeRatio);
     }
 
+    /* ======== MANAGER FUNCTIONS ======== */
+
+    function setNodeMinted(address _account) external onlyManager {
+        mintableNode[_account] = address(0);
+    }
+
     /* ======== PUBLIC FUNCTIONS ======== */
 
     function rollDice() external {
@@ -170,6 +189,12 @@ contract DegenopolyPlayBoard is OwnableUpgradeable {
             addressProvider.getTreasury(),
             treasuryFee
         );
+
+        // reset mintable node
+        if (mintableNode[msg.sender] != address(0)) {
+            emit RejectMintableNode(msg.sender, mintableNode[msg.sender]);
+            mintableNode[msg.sender] = address(0);
+        }
 
         // roll dice
         uint256 dice = (block.prevrandao % 6) + 1;
@@ -283,10 +308,10 @@ contract DegenopolyPlayBoard is OwnableUpgradeable {
                 degenopoly.balanceOf(address(this))
             );
         }
-        // NFT Case: mint
+        // NFT Case: mintable
         else {
             address node = abi.decode(_nowCase.info, (address));
-            IDegenopolyNode(node).mint(_account);
+            mintableNode[_account] = node;
         }
     }
 }
