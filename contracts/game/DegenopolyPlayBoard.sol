@@ -65,7 +65,7 @@ contract DegenopolyPlayBoard is OwnableUpgradeable {
     mapping(address => uint256) private lastRollBlockOf;
 
     /// @dev mapping account => last event type from roll dice
-    mapping(address => EventType) private lastEventTypeOf;
+    mapping(address => EventType) public lastEventTypeOf;
 
     /* ======== ERRORS ======== */
 
@@ -199,6 +199,7 @@ contract DegenopolyPlayBoard is OwnableUpgradeable {
         Case memory nowCase = cases[_caseIndex];
         if (nowCase.caseType == CaseType.DevWallet) revert INVALID_CEX_CHOICE();
 
+        positionOf[msg.sender] = _caseIndex;
         // handle
         EventType eventType = _handleCase(msg.sender, nowCase);
 
@@ -285,8 +286,9 @@ contract DegenopolyPlayBoard is OwnableUpgradeable {
         }
         // NFT Case: mint
         else {
-            address node = abi.decode(_nowCase.info, (address));
-            IDegenopolyNode(node).mint(_account);
+            // address node = abi.decode(_nowCase.info, (address));
+            // IDegenopolyNode(node).mint(_account);
+            degenopolyNodeManager.setMinted(_account, false);
         }
     }
 }
