@@ -37,6 +37,9 @@ contract DegenopolyNodeManager is OwnableUpgradeable, IDegenopolyNodeManager {
 
     /// @dev mapping account => reward multiplier
     mapping(address => uint256) private multiplierOf;
+    
+    /// @notice mapping account => last minted
+    mapping(address => bool) public mintedOf;
 
     /* ======== ERRORS ======== */
 
@@ -48,6 +51,7 @@ contract DegenopolyNodeManager is OwnableUpgradeable, IDegenopolyNodeManager {
     error NOT_NODE_FAMILY();
     error NOT_PLAY_BOARD();
     error NOT_NODE_OWNER();
+    error ALREADY_MINTED();
 
     /* ======== EVENTS ======== */
 
@@ -197,6 +201,7 @@ contract DegenopolyNodeManager is OwnableUpgradeable, IDegenopolyNodeManager {
 
     function purchaseNode(address _node) external {
         if (!nodes.contains(_node)) revert INAVLID_NODE();
+        if (mintedOf[msg.sender]) revert ALREADY_MINTED();
 
         // pay
         uint256 price = IDegenopolyNode(_node).purchasePrice();
@@ -208,6 +213,7 @@ contract DegenopolyNodeManager is OwnableUpgradeable, IDegenopolyNodeManager {
 
         // mint
         IDegenopolyNode(_node).mint(msg.sender);
+        setMinted(msg.sender, true);
 
         // event
         emit PurchaseNode(msg.sender, _node);
@@ -258,6 +264,10 @@ contract DegenopolyNodeManager is OwnableUpgradeable, IDegenopolyNodeManager {
 
         // event
         emit ClaimReward(msg.sender, reward);
+    }
+
+    function setMinted(address _account, bool _minted) public {        
+        mintedOf[_account] = _minted;
     }
 
     /* ======== VIEW FUNCTIONS ======== */
