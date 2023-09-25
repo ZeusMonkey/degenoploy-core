@@ -200,6 +200,12 @@ contract DegenopolyPlayBoard is OwnableUpgradeable {
         uint256 dice = (block.prevrandao % 6) + 1;
         diceOf[msg.sender] = dice;
 
+        // pass the start case
+        if (positionOf[msg.sender] + dice > numberOfCases) {
+            IDegenopolyNodeManager(addressProvider.getDegenopolyNodeManager())
+                .addMultiplier(msg.sender, 10500);
+        }
+
         // position
         uint256 position = (positionOf[msg.sender] + dice) % numberOfCases;
         positionOf[msg.sender] = position;

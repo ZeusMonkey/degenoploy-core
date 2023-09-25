@@ -204,7 +204,7 @@ const deployDegenopoly: DeployFunction = async (
       symbol: 'Indian Jeet City',
       baseTokenURI: '',
       color: 'Brown',
-      rewardPerSec: ether(5.25).div(86400),
+      rewardPerSec: ether(5250).div(86400),
       purchasePrice: ether(150),
     },
     {
@@ -212,7 +212,7 @@ const deployDegenopoly: DeployFunction = async (
       symbol: 'Honeypot Land',
       baseTokenURI: '',
       color: 'Brown',
-      rewardPerSec: ether(7).div(86400),
+      rewardPerSec: ether(7000).div(86400),
       purchasePrice: ether(200),
     },
     {
@@ -220,7 +220,7 @@ const deployDegenopoly: DeployFunction = async (
       symbol: 'St Exitscam',
       baseTokenURI: '',
       color: 'Gray',
-      rewardPerSec: ether(8.75).div(86400),
+      rewardPerSec: ether(8750).div(86400),
       purchasePrice: ether(250),
     },
     {
@@ -228,7 +228,7 @@ const deployDegenopoly: DeployFunction = async (
       symbol: 'Rug2Riches',
       baseTokenURI: '',
       color: 'Gray',
-      rewardPerSec: ether(10.5).div(86400),
+      rewardPerSec: ether(10500).div(86400),
       purchasePrice: ether(300),
     },
     {
@@ -236,7 +236,7 @@ const deployDegenopoly: DeployFunction = async (
       symbol: 'Softrug Boulevard',
       baseTokenURI: '',
       color: 'Gray',
-      rewardPerSec: ether(12.25).div(86400),
+      rewardPerSec: ether(12250).div(86400),
       purchasePrice: ether(350),
     },
     {
@@ -244,7 +244,7 @@ const deployDegenopoly: DeployFunction = async (
       symbol: 'Shitcoin Paradise',
       baseTokenURI: '',
       color: 'Purple',
-      rewardPerSec: ether(14.875).div(86400),
+      rewardPerSec: ether(14875).div(86400),
       purchasePrice: ether(425),
     },
     {
@@ -252,7 +252,7 @@ const deployDegenopoly: DeployFunction = async (
       symbol: 'Pleb VCC',
       baseTokenURI: '',
       color: 'Purple',
-      rewardPerSec: ether(16.625).div(86400),
+      rewardPerSec: ether(16625).div(86400),
       purchasePrice: ether(475),
     },
     {
@@ -260,7 +260,7 @@ const deployDegenopoly: DeployFunction = async (
       symbol: 'Ponzi Farm',
       baseTokenURI: '',
       color: 'Orange',
-      rewardPerSec: ether(21).div(86400),
+      rewardPerSec: ether(21000).div(86400),
       purchasePrice: ether(600),
     },
     {
@@ -268,7 +268,7 @@ const deployDegenopoly: DeployFunction = async (
       symbol: '$er’s Castle',
       baseTokenURI: '',
       color: 'Orange',
-      rewardPerSec: ether(22.75).div(86400),
+      rewardPerSec: ether(22750).div(86400),
       purchasePrice: ether(650),
     },
     {
@@ -276,7 +276,7 @@ const deployDegenopoly: DeployFunction = async (
       symbol: 'Ape Territory',
       baseTokenURI: '',
       color: 'Orange',
-      rewardPerSec: ether(24.5).div(86400),
+      rewardPerSec: ether(24500).div(86400),
       purchasePrice: ether(700),
     },
     {
@@ -284,7 +284,7 @@ const deployDegenopoly: DeployFunction = async (
       symbol: 'ICO Graveyard',
       baseTokenURI: '',
       color: 'Red',
-      rewardPerSec: ether(30.625).div(86400),
+      rewardPerSec: ether(30625).div(86400),
       purchasePrice: ether(875),
     },
     {
@@ -292,7 +292,7 @@ const deployDegenopoly: DeployFunction = async (
       symbol: 'Dinocoins City',
       baseTokenURI: '',
       color: 'Red',
-      rewardPerSec: ether(32.375).div(86400),
+      rewardPerSec: ether(32375).div(86400),
       purchasePrice: ether(925),
     },
     {
@@ -300,7 +300,7 @@ const deployDegenopoly: DeployFunction = async (
       symbol: 'Moonshot Street',
       baseTokenURI: '',
       color: 'Red',
-      rewardPerSec: ether(34.125).div(86400),
+      rewardPerSec: ether(34125).div(86400),
       purchasePrice: ether(975),
     },
     {
@@ -308,7 +308,7 @@ const deployDegenopoly: DeployFunction = async (
       symbol: 'Liquidation Park',
       baseTokenURI: '',
       color: 'Yellow',
-      rewardPerSec: ether(42).div(86400),
+      rewardPerSec: ether(42000).div(86400),
       purchasePrice: ether(1200),
     },
     {
@@ -316,7 +316,7 @@ const deployDegenopoly: DeployFunction = async (
       symbol: 'Gems Kingdom',
       baseTokenURI: '',
       color: 'Yellow',
-      rewardPerSec: ether(43.75).div(86400),
+      rewardPerSec: ether(43750).div(86400),
       purchasePrice: ether(1250),
     },
     {
@@ -324,7 +324,7 @@ const deployDegenopoly: DeployFunction = async (
       symbol: 'Goblin Town',
       baseTokenURI: '',
       color: 'Blue',
-      rewardPerSec: ether(54.25).div(86400),
+      rewardPerSec: ether(54250).div(86400),
       purchasePrice: ether(1550),
     },
     {
@@ -332,7 +332,7 @@ const deployDegenopoly: DeployFunction = async (
       symbol: 'The Citadel',
       baseTokenURI: '',
       color: 'Blue',
-      rewardPerSec: ether(56).div(86400),
+      rewardPerSec: ether(56000).div(86400),
       purchasePrice: ether(1600),
     },
   ];
